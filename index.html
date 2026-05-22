@@ -261,25 +261,32 @@
         }
 
         async function enviarEstadosALaNube() {
-            const btn = document.getElementById('btn-save');
-            btn.innerText = "⏳ Sincronizando con Excel...";
-            btn.disabled = true;
+    const btn = document.getElementById('btn-save');
+    btn.innerText = "⏳ Sincronizando...";
+    btn.disabled = true;
 
-            try {
-                const response = await fetch(URL_MESA_PUENTE, {
-                    method: "POST",
-                    mode: "no-cors", 
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(estadosActuales)
-                });
-                alert("💾 ¡Reporte transmitido a la nube! Google Sheets actualizado.");
-            } catch (error) {
-                alert("❌ Error de conexión al guardar.");
-            } finally {
-                btn.innerText = "💾 Guardar Reporte en Excel";
-                btn.disabled = false;
-            }
-        }
+    const datosParaEnviar = {};
+    for (const id in estadosActuales) {
+        // Normalizamos el ID para que coincida con el Excel
+        const idLimpio = id.toUpperCase().replace(/[\s-]/g, "");
+        datosParaEnviar[idLimpio] = estadosActuales[id];
+    }
+
+    try {
+        await fetch(URL_MESA_PUENTE, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datosParaEnviar)
+        });
+        alert("✅ Sincronización exitosa.");
+    } catch (e) {
+        alert("❌ Error al guardar.");
+    } finally {
+        btn.innerText = "💾 Guardar Reporte en Excel";
+        btn.disabled = false;
+    }
+}
 
         function recalcularContadoresGrupo(grupoId) {
             let activos = 0, inactivos = 0, seguridad = 0, reserva = 0;
