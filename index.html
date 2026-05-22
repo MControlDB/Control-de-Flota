@@ -211,7 +211,8 @@
                 html += `<div class="grid-equipos">`;
                 
                 equipos.forEach(equipo => {
-                    let estadoInicial = estadosRemotos[equipo.id.toUpperCase()] || "Activo";
+                   let idLimpioParaBuscar = normalizarIDWeb(equipo.id);
+                let estadoInicial = estadosRemotos[idLimpioParaBuscar] || "Activo";
 
                     estadosActuales[equipo.id] = { estado: estadoInicial, grupo: grupoId, categoriaOriginal: categoria };
                     
@@ -326,6 +327,11 @@
         function cleanClassName(text) { return text.replace(/[^A-Z0-9]/ig, "_"); }
 
         inicializarPizarra();
+function normalizarIDWeb(texto) {
+    if (!texto) return "";
+    return texto.toString().toUpperCase().replace(/[\s-]/g, "");
+}
+        
     </script>
 </body>
 </html>
