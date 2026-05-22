@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
+    <title>Pizarra Flota Móvil - Resumen Automatizado</title>
+    <style>
+        :root {
+            --bg-activo: #2ecc71;
+            --bg-inactivo: #e74c3c;
+            --bg-seguridad: #f1c40f;
+            --bg-reserva: #34495e;
+            --primary-color: #0f172a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            margin: 0;
+            padding: 10px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5px;
+            border-bottom: 2px solid #cbd5e1;
+            margin-bottom: 15px;
+        }
+
+        h1 { font-size: 1.2rem; margin: 0; color: var(--primary-color); }
+        
+        .contador-total {
+            font-size: 0.85rem;
+            background: #cbd5e1;
+            color: #334155;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        /* Estilos de la nueva Tabla de Resumen */
+        .resumen-container {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .resumen-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tabla-resumen {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .tabla-resumen th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            padding: 8px 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tabla-resumen td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+
+        .tabla-resumen tr:last-child td {
+            font-weight: bold;
+            border-top: 2px solid #e2e8f0;
+            background-color: #f8fafc;
+            color: var(--primary-color);
+        }
+
+        .badge-activo-tabla {
+            background-color: #e8f8f0;
+            color: #14532d;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Estilos de Secciones y Tarjetas */
+        .categoria-section {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .categoria-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 4px;
+        }
+
+        .grid-equipos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 6px;
+        }
+
+        .tarjeta-equipo {
+            background-color: #f8fafc;
+            border-left: 5px solid var(--bg-activo);
+            border-radius: 6px;
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+            border-left-width: 5px;
+        }
+
+        .tarjeta-equipo[data-estado="Activo"] { border-left-color: var(--bg-activo); }
+        .tarjeta-equipo[data-estado="Inactivo"] { border-left-color: var(--bg-inactivo); }
+        .tarjeta-equipo[data-estado="Seguridad"] { border-left-color: var(--bg-seguridad); }
+        .tarjeta-equipo[data-estado="Reserva"] { border-left-color: var(--bg-reserva); }
+
+        .info-bloque {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding-right: 4px;
+            word-break: break-word;
+        }
+
+        .equipo-id {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .equipo-sub {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
+        .selectores-estado {
+            display: flex;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+
+        .btn-estado {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tarjeta-equipo[data-estado="Activo"] .btn-a { background-color: var(--bg-activo); color: #fff; border-color: var(--bg-activo); }
+        .tarjeta-equipo[data-estado="Inactivo"] .btn-i { background-color: var(--bg-inactivo); color: #fff; border-color: var(--bg-inactivo); }
+        .tarjeta-equipo[data-estado="Seguridad"] .btn-s { background-color: var(--bg-seguridad); color: #000; border-color: var(--bg-seguridad); }
+        .tarjeta-equipo[data-estado="Reserva"] .btn-r { background-color: var(--bg-reserva); color: #fff; border-color: var(--bg-reserva); }
+
+        .panel-contadores {
+            display: flex;
+            justify-content: space-around;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-top: 10px;
+            padding: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .count-item { display: flex; align-items: center; gap: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Control de Flota Móvil</h1>
+        <div class="contador-total" id="total-maquinas">Total Equipos: --</div>
+    </header>
+
+    <section class="resumen-container">
+        <div class="resumen-title">📊 Resumen de Equipos Activos en Mina</div>
+        <table class="tabla-resumen">
+            <thead>
+                <tr>
+                    <th>Tipo de Maquinaria</th>
+                    <th style="text-align: center;">Cantidad Activa</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpo-tabla-resumen">
+                </tbody>
+        </table>
+    </section>
+
+    <main id="pizarra-contenidos">
+        </main>
+
+    <script>
+        // Estructura separando Tractores de Motoniveladoras
+        const datosFlota = {
+            "EXCAVADORAS": [
+                { id: "92", modelo: "336", sub: "Ecovial" },
+                { id: "RT08", modelo: "350", sub: "Ecovial" },
+                { id: "RT10", modelo: "336", sub: "Nimac" },
+                { id: "RT18", modelo: "336", sub: "Nimac" },
+                { id: "93", modelo: "350", sub: "Bravo" },
+                { id: "EX06", modelo: "HX340HD", sub: "Duroblock" },
+                { id: "EX07", modelo: "HX340HD", sub: "Duroblock" },
+                { id: "EX08", modelo: "HX340HD", sub: "Duroblock" },
+                { id: "EX09", modelo: "HX340SL", sub: "Duroblock" },
+                { id: "EX10", modelo: "HX520L", sub: "Duroblock" },
+                { id: "EX11", modelo: "HX220S+", sub: "Duroblock" },
+                { id: "EX12", modelo: "HX220S+", sub: "Duroblock" }
+            ],
+            "VOLQUETES DUROBLOCK": [
+                { id: "CV-01", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV-02", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV-04", modelo: "BJ3259D", sub: "Duroblock" },
+                { id: "CV-06", modelo: "BJ3259D", sub: "Duroblock" },
+                { id: "CV-07", modelo: "BJ3259D", sub: "Duroblock" },
+                { id: "CV-08", modelo: "BJ3259D", sub: "Duroblock" },
+                { id: "CV-09", modelo: "BJ3259D", sub: "Duroblock" },
+                { id: "CV11", modelo: "JH6", sub: "Duroblock" },
+                { id: "CV12", modelo: "JH6", sub: "Duroblock" },
+                { id: "CV13", modelo: "JH6", sub: "Duroblock" },
+                { id: "CV14", modelo: "JH6", sub: "Duroblock" },
+                { id: "CV15", modelo: "JH6", sub: "Duroblock" },
+                { id: "CV16", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV17", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV18", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV19", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV20", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV21", modelo: "SX32556", sub: "Duroblock" },
+                { id: "CV22", modelo: "HV607HD", sub: "Duroblock" },
+                { id: "CV23", modelo: "HV607HD", sub: "Duroblock" },
+                { id: "RT-17", modelo: "BJ3259D", sub: "Duroblock" }
+            ],
+            "VOLQUETES BRAVO": [
+                { id: "55", modelo: "7600 6X4", sub: "Bravo" },
+                { id: "56", modelo: "CH612", sub: "Bravo" },
+                { id: "60", modelo: "CH612", sub: "Bravo" },
+                { id: "62", modelo: "VC713", sub: "Bravo" },
+                { id: "63", modelo: "CV713", sub: "Bravo" },
+                { id: "64", modelo: "CH600", sub: "Bravo" },
+                { id: "65", modelo: "Mack", sub: "Bravo" }
+            ],
+            "TRACTORES": [
+                { id: "TR-01", modelo: "D6K", sub: "Duroblock" },
+                { id: "TR-02", modelo: "D8", sub: "Duroblock" },
+                { id: "TR-03", modelo: "D7", sub: "Duroblock" },
+                { id: "TR-04", modelo: "D8", sub: "Duroblock" },
+                { id: "RT-15", modelo: "D6T", sub: "Nimac" },
+                { id: "74", modelo: "D8T", sub: "Bravo" },
+                { id: "98", modelo: "D8T", sub: "Doris" },
+                { id: "100", modelo: "D8T", sub: "Doris" }
+            ],
+            "MOTONIVELADORAS": [
+                { id: "MT-01", modelo: "HG190", sub: "Duroblock" },
+                { id: "MT-02", modelo: "HG190", sub: "Duroblock" },
+                { id: "66", modelo: "140 K", sub: "Bravo" }
+            ],
+            "EQUIPOS DE APOYO (CISTERNAS / VIBRO / BACK HOE)": [
+                { id: "REX-01", modelo: "416", sub: "BackHoe" },
+                { id: "VCR-01", modelo: "SV52ID", sub: "Vibro" },
+                { id: "VCR-02", modelo: "SV52ID", sub: "Vibro" },
+                { id: "2", modelo: "7600", sub: "Cisterna" },
+                { id: "RT05", modelo: "Transtar", sub: "Cisterna" },
+                { id: "RT11", modelo: "-", sub: "Cisterna" }
+            ]
+        };
+
+        const estadosActuales = {};
+        const contenedor = document.getElementById('pizarra-contenidos');
+        const cuerpoTablaResumen = document.getElementById('cuerpo-tabla-resumen');
+
+        function inicializarPizarra() {
+            let totalEquipos = 0;
+            contenedor.innerHTML = "";
+
+            for (const [categoria, equipos] of Object.entries(datosFlota)) {
+                totalEquipos += equipos.length;
+                
+                const seccion = document.createElement('section');
+                seccion.className = 'categoria-section';
+                const grupoId = cleanClassName(categoria);
+                seccion.id = `sec-${grupoId}`;
+                
+                let html = `<div class="categoria-title">${categoria}</div>`;
+                html += `<div class="grid-equipos">`;
+                
+                equipos.forEach(equipo => {
+                    estadosActuales[equipo.id] = { estado: "Activo", grupo: grupoId, categoriaOriginal: categoria };
+                    
+                    html += `
+                        <div class="tarjeta-equipo" id="eq-${equipo.id}" data-estado="Activo">
+                            <div class="info-bloque">
+                                <span class="equipo-id">${equipo.id}</span>
+                                <span class="equipo-sub">${equipo.modelo}<br>${equipo.sub}</span>
+                            </div>
+                            <div class="selectores-estado">
+                                <div class="btn-estado btn-a" onclick="actualizarEstado('${equipo.id}', 'Activo')">A</div>
+                                <div class="btn-estado btn-i" onclick="actualizarEstado('${equipo.id}', 'Inactivo')">I</div>
+                                <div class="btn-estado btn-s" onclick="actualizarEstado('${equipo.id}', 'Seguridad')">S</div>
+                                <div class="btn-estado btn-r" onclick="actualizarEstado('${equipo.id}', 'Reserva')">R</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                html += `
+                    <div class="panel-contadores" id="cnt-${grupoId}">
+                        <div class="count-item"><span class="dot" style="background:var(--bg-activo)"></span>Activos: <span class="val-activo">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-inactivo)"></span>Inactivos: <span class="val-inactivo">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-seguridad)"></span>Seguridad: <span class="val-seguridad">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-reserva)"></span>Reserva: <span class="val-reserva">0</span></div>
+                    </div>
+                `;
+                
+                seccion.innerHTML = html;
+                contenedor.appendChild(seccion);
+                recalcularContadoresGrupo(grupoId);
+            }
+            document.getElementById('total-maquinas').innerText = `Total Equipos: ${totalEquipos}`;
+            actualizarTablaResumen();
+        }
+
+        function actualizarEstado(idEquipo, nuevoEstado) {
+            const tarjeta = document.getElementById(`eq-${idEquipo}`);
+            if (tarjeta) {
+                tarjeta.setAttribute('data-estado', nuevoEstado);
+                estadosActuales[idEquipo].estado = nuevoEstado;
+                recalcularContadoresGrupo(estadosActuales[idEquipo].grupo);
+                actualizarTablaResumen(); // Actualiza la tabla superior instantáneamente
+            }
+        }
+
+        function recalcularContadoresGrupo(grupoId) {
+            let activos = 0, inactivos = 0, seguridad = 0, reserva = 0;
+            for (const id in estadosActuales) {
+                if (estadosActuales[id].grupo === grupoId) {
+                    const est = estadosActuales[id].estado;
+                    if (est === "Activo") activos++;
+                    else if (est === "Inactivo") inactivos++;
+                    else if (est === "Seguridad") seguridad++;
+                    else if (est === "Reserva") reserva++;
+                }
+            }
+            const panel = document.getElementById(`cnt-${grupoId}`);
+            if (panel) {
+                panel.querySelector('.val-activo').innerText = activos;
+                panel.querySelector('.val-inactivo').innerText = inactivos;
+                panel.querySelector('.val-seguridad').innerText = seguridad;
+                panel.querySelector('.val-reserva').innerText = reserva;
+            }
+        }
+
+        // Función que regenera la tabla superior en base a los estados vivos
+        function actualizarTablaResumen() {
+            cuerpoTablaResumen.innerHTML = "";
+            let sumaTotalActivos = 0;
+
+            for (const categoria in datosFlota) {
+                let activosCategoria = 0;
+                for (const id in estadosActuales) {
+                    if (estadosActuales[id].categoriaOriginal === categoria && estadosActuales[id].estado === "Activo") {
+                        activosCategoria++;
+                    }
+                }
+                sumaTotalActivos += activosCategoria;
+
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${categoria}</td>
+                    <td style="text-align: center;"><span class="badge-activo-tabla">${activosCategoria}</span></td>
+                `;
+                cuerpoTablaResumen.appendChild(fila);
+            }
+
+            // Fila final de sumatoria total de activos
+            const filaTotal = document.createElement('tr');
+            filaTotal.innerHTML = `
+                <td>TOTAL ACTIVOS EN MINA</td>
+                <td style="text-align: center; font-size: 1rem; color: #16a34a;">${sumaTotalActivos}</td>
+            `;
+            cuerpoTablaResumen.appendChild(filaTotal);
+        }
+
+        function cleanClassName(text) {
+            return text.replace(/[^A-Z0-9]/ig, "_");
+        }
+
+        inicializarPizarra();
+    </script>
+</body>
+</html>
