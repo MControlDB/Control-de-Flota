@@ -140,7 +140,7 @@
     <main id="pizarra-contenidos"></main>
 
     <script>
-        // URL de tu aplicación web de Apps Script integrada directamente
+        // URL de tu aplicación web de Apps Script integrada directamente con comillas correctas
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
 
         const datosFlota = {
@@ -175,4 +175,157 @@
                 { id: "RT-15", modelo: "D6T", sub: "Nimac" }, { id: "74", modelo: "D8T", sub: "Bravo" },
                 { id: "98", modelo: "D8T", sub: "Doris" }, { id: "100", modelo: "D8T", sub: "Doris" }
             ],
-            "MOTONIVELADORAS":
+            "MOTONIVELADORAS": [
+                { id: "MT-01", modelo: "HG190", sub: "Duroblock" }, { id: "MT-02", modelo: "HG190", sub: "Duroblock" }, { id: "66", modelo: "140 K", sub: "Bravo" }
+            ],
+            "EQUIPOS DE APOYO (CISTERNAS / VIBRO / BACK HOE)": [
+                { id: "REX-01", modelo: "416", sub: "BackHoe" }, { id: "VCR-01", modelo: "SV52ID", sub: "Vibro" },
+                { id: "VCR-02", modelo: "SV52ID", sub: "Vibro" }, { id: "2", modelo: "7600", sub: "Cisterna" },
+                { id: "RT05", modelo: "Transtar", sub: "Cisterna" }, { id: "RT11", modelo: "-", sub: "Cisterna" }
+            ]
+        };
+
+        let estadosActuales = {};
+        const contenedor = document.getElementById('pizarra-contenidos');
+        const cuerpoTablaResumen = document.getElementById('cuerpo-tabla-resumen');
+
+        async function inicializarPizarra() {
+            let totalEquipos = 0;
+            contenedor.innerHTML = "";
+
+            let estadosRemotos = {};
+            try {
+                const res = await fetch(URL_MESA_PUENTE);
+                estadosRemotos = await res.json();
+            } catch(e) { console.log("Modo offline o error de lectura inicial"); }
+
+            for (const [categoria, equipos] of Object.entries(datosFlota)) {
+                totalEquipos += equipos.length;
+                const grupoId = cleanClassName(categoria);
+                
+                const seccion = document.createElement('section');
+                seccion.className = 'categoria-section';
+                seccion.id = `sec-${grupoId}`;
+                
+                let html = `<div class="categoria-title">${categoria}</div>`;
+                html += `<div class="grid-equipos">`;
+                
+                equipos.forEach(equipo => {
+                    let estadoInicial = estadosRemotos[equipo.id.toUpperCase()] || "Activo";
+
+                    estadosActuales[equipo.id] = { estado: estadoInicial, grupo: grupoId, categoriaOriginal: categoria };
+                    
+                    html += `
+                        <div class="tarjeta-equipo" id="eq-${equipo.id}" data-estado="${estadoInicial}">
+                            <div class="info-bloque">
+                                <span class="equipo-id">${equipo.id}</span>
+                                <span class="equipo-sub">${equipo.modelo}<br>${equipo.sub}</span>
+                            </div>
+                            <div class="selectores-estado">
+                                <div class="btn-estado btn-a" onclick="actualizarEstadoVisual('${equipo.id}', 'Activo')">A</div>
+                                <div class="btn-estado btn-i" onclick="actualizarEstadoVisual('${equipo.id}', 'Inactivo')">I</div>
+                                <div class="btn-estado btn-s" onclick="actualizarEstadoVisual('${equipo.id}', 'Seguridad')">S</div>
+                                <div class="btn-estado btn-r" onclick="actualizarEstadoVisual('${equipo.id}', 'Reserva')">R</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+                html += `
+                    <div class="panel-contadores" id="cnt-${grupoId}">
+                        <div class="count-item"><span class="dot" style="background:var(--bg-activo)"></span>Activos: <span class="val-activo">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-inactivo)"></span>Inactivos: <span class="val-inactivo">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-seguridad)"></span>Seguridad: <span class="val-seguridad">0</span></div>
+                        <div class="count-item"><span class="dot" style="background:var(--bg-reserva)"></span>Reserva: <span class="val-reserva">0</span></div>
+                    </div>
+                `;
+                
+                seccion.innerHTML = html;
+                contenedor.appendChild(seccion);
+                recalcularContadoresGrupo(grupoId);
+            }
+            document.getElementById('total-maquinas').innerText = `Total Equipos: ${totalEquipos}`;
+            actualizarTablaResumen();
+        }
+
+        function actualizarEstadoVisual(idEquipo, nuevoEstado) {
+            const tarjeta = document.getElementById(`eq-${idEquipo}`);
+            if (tarjeta) {
+                tarjeta.setAttribute('data-estado', nuevoEstado);
+                estadosActuales[idEquipo].estado = nuevoEstado;
+                recalcularContadoresGrupo(estadosActuales[idEquipo].grupo);
+                actualizarTablaResumen();
+            }
+        }
+
+        async function enviarEstadosALaNube() {
+            const btn = document.getElementById('btn-save');
+            btn.innerText = "⏳ Sincronizando con Excel...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(URL_MESA_PUENTE, {
+                    method: "POST",
+                    mode: "no-cors", 
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(estadosActuales)
+                });
+                alert("💾 ¡Reporte transmitido a la nube! Google Sheets actualizado.");
+            } catch (error) {
+                alert("❌ Error de conexión al guardar.");
+            } finally {
+                btn.innerText = "💾 Guardar Reporte en Excel";
+                btn.disabled = false;
+            }
+        }
+
+        function recalcularContadoresGrupo(grupoId) {
+            let activos = 0, inactivos = 0, seguridad = 0, reserva = 0;
+            for (const id in estadosActuales) {
+                if (estadosActuales[id].grupo === grupoId) {
+                    const est = estadosActuales[id].estado;
+                    if (est === "Activo") activos++;
+                    else if (est === "Inactivo") inactivos++;
+                    else if (est === "Seguridad") seguridad++;
+                    else if (est === "Reserva") reserva++;
+                }
+            }
+            const panel = document.getElementById(`cnt-${grupoId}`);
+            if (panel) {
+                panel.querySelector('.val-activo').innerText = activos;
+                panel.querySelector('.val-inactivo').innerText = inactivos;
+                panel.querySelector('.val-seguridad').innerText = seguridad;
+                panel.querySelector('.val-reserva').innerText = reserva;
+            }
+        }
+
+        function actualizarTablaResumen() {
+            cuerpoTablaResumen.innerHTML = "";
+            let sumaTotalActivos = 0;
+
+            for (const categoria in datosFlota) {
+                let activosCategoria = 0;
+                for (const id in estadosActuales) {
+                    if (estadosActuales[id].categoriaOriginal === categoria && estadosActuales[id].estado === "Activo") {
+                        activosCategoria++;
+                    }
+                }
+                sumaTotalActivos += activosCategoria;
+
+                const fila = document.createElement('tr');
+                fila.innerHTML = `<td>${categoria}</td><td style="text-align: center;"><span class="badge-activo-tabla">${activosCategoria}</span></td>`;
+                cuerpoTablaResumen.appendChild(fila);
+            }
+
+            const filaTotal = document.createElement('tr');
+            filaTotal.innerHTML = `<td>TOTAL ACTIVOS EN MINA</td><td style="text-align: center; font-size: 1rem; font-weight: bold; color: #16a34a;">${sumaTotalActivos}</td>`;
+            cuerpoTablaResumen.appendChild(filaTotal);
+        }
+
+        function cleanClassName(text) { return text.replace(/[^A-Z0-9]/ig, "_"); }
+
+        inicializarPizarra();
+    </script>
+</body>
+</html>
