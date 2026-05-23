@@ -2,38 +2,60 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Control de Flota Remoto</title>
     <style>
-        body { font-family: sans-serif; background: #f1f5f9; padding: 10px; }
-        .dashboard-header { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .resumen-tabla { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .resumen-tabla th, .resumen-tabla td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-        .categoria-section { background: white; margin-bottom: 15px; padding: 10px; border-radius: 8px; }
-        .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
-        .btn-estado { padding: 6px 12px; margin-left: 4px; border: 1px solid #ccc; cursor: pointer; border-radius: 4px; font-weight: bold; background: #fff; }
+        /* CSS MOBILE-FIRST EXTREMADAMENTE COMPACTO */
+        body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; padding: 5px; margin: 0; font-size: 13px; color: #1e293b; }
         
-        /* Colores de estado */
+        .dashboard-header { background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .app-title { font-size: 16px; font-weight: 700; margin: 0; text-align: center; }
+        
+        #btn-sync { width: 100%; padding: 8px; background: #2563eb; color: white; border: none; border-radius: 5px; margin-top: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+        #btn-sync.syncing { background-color: #6b7280; cursor: not-allowed; }
+
+        .resumen-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .resumen-tabla th, .resumen-tabla td { padding: 4px 2px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+        .resumen-tabla th { font-weight: 600; color: #64748b; font-size: 11px; text-transform: uppercase; }
+
+        .categoria-section { background: white; margin-bottom: 10px; padding: 8px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .categoria-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        
+        /* TARJETAS COMPACTAS: APILADO VERTICAL */
+        .tarjeta-equipo { padding: 6px 0; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 4px; }
+        .tarjeta-equipo:last-child { border-bottom: none; }
+        
+        .eq-info { line-height: 1.2; }
+        .eq-id { font-weight: 700; color: #0f172a; font-size: 13px; }
+        .eq-modelo { color: #64748b; font-size: 11px; }
+
+        .eq-acciones { display: flex; justify-content: space-between; align-items: center; gap: 2px; margin-top: 2px; }
+        
+        .btn-estado { flex: 1; padding: 5px 0; border: 1px solid #cbd5e1; cursor: pointer; border-radius: 4px; font-weight: 700; background: #fff; font-size: 12px; text-align: center; }
+        .btn-estado:last-child { margin-right: 0; }
+
+        /* Colores de estado activos (cuando se seleccionan) */
         .activo { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
         .inactivo { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
         .reserva { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; }
         .seguridad { background-color: #3b82f6 !important; color: white !important; border-color: #2563eb !important; }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="dashboard-header">
-    <h2 style="margin:0">Control de Flota</h2>
-    <button id="btn-sync" onclick="sincronizarConHoja()" style="width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; margin-top: 10px;">
-        💾 Sincronizar Cambios
-    </button>
+    <div class="app-title">Control de Flota Remoto</div>
+    <button id="btn-sync" onclick="sincronizarConHoja()">💾 Sincronizar Cambios</button>
     <div id="resumen-container"></div>
 </div>
 
-<main id="pizarra-contenidos"></main>
+<main id="pizarra-contenidos">Cargando...</main>
 
 <script>
     const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
-    window.datosGlobales = []; // Array original
+    window.datosGlobales = []; // Array original en memoria
 
     function cargarDatos() {
         const script = document.createElement('script');
@@ -51,6 +73,11 @@
         const resumen = document.getElementById('resumen-container');
         contenedor.innerHTML = "";
         
+        if (!window.datosGlobales || window.datosGlobales.length === 0) {
+            contenedor.innerHTML = '<div style="text-align:center; padding:20px;">No hay datos.</div>';
+            return;
+        }
+
         const grupos = {};
         window.datosGlobales.forEach(eq => {
             // Si hay un cambio pendiente local, lo usamos para el cálculo
@@ -61,23 +88,34 @@
             if (estadoActual === 'Activo') grupos[eq.grupo].activos++;
         });
 
-        // Dibujar Resumen
-        let resumenHTML = `<table class="resumen-tabla"><tr><th>Grupo</th><th>Activos</th></tr>`;
-        for (let g in grupos) resumenHTML += `<tr><td>${g}</td><td>${grupos[g].activos}</td></tr>`;
-        resumen.innerHTML = resumenHTML + `</table>`;
+        // 1. Dibujar Resumen COMPACTO
+        let resumenHTML = `<table class="resumen-tabla"><thead><tr><th>Grupo</th><th>Activos</th></tr></thead><tbody>`;
+        for (let g in grupos) {
+            resumenHTML += `<tr><td>${g}</td><td>${grupos[g].activos}</td></tr>`;
+        }
+        resumenHTML += `</tbody></table>`;
+        resumen.innerHTML = resumenHTML;
 
-        // Dibujar Tarjetas
+        // 2. Dibujar Tarjetas COMPACTAS
         for (const [nombre, datos] of Object.entries(grupos)) {
-            let html = `<h3>${nombre}</h3>`;
+            let html = `<div class="categoria-title">${nombre}</div>`;
             datos.lista.forEach(eq => {
+                const estClass = eq.estado ? eq.estado.toLowerCase() : '';
                 html += `
                     <div class="tarjeta-equipo">
-                        <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
-                        <div>
-                            ${['Activo','Inactivo','Reserva','Seguridad'].map(s => 
-                                `<button class="btn-estado ${eq.estado === s ? s.toLowerCase() : ''}" 
-                                         onclick="cambiarEstadoLocal('${eq.id}', '${s}')">${s[0]}</button>`
-                            ).join('')}
+                        <div class="eq-info">
+                            <span class="eq-id">${eq.id}</span>
+                            <span class="eq-modelo">(${eq.modelo})</span>
+                        </div>
+                        <div class="eq-acciones">
+                            <button class="btn-estado ${eq.estado === 'Activo' ? 'activo' : ''}" 
+                                     onclick="cambiarEstadoLocal('${eq.id}', 'Activo')">A</button>
+                            <button class="btn-estado ${eq.estado === 'Inactivo' ? 'inactivo' : ''}" 
+                                     onclick="cambiarEstadoLocal('${eq.id}', 'Inactivo')">I</button>
+                            <button class="btn-estado ${eq.estado === 'Reserva' ? 'reserva' : ''}" 
+                                     onclick="cambiarEstadoLocal('${eq.id}', 'Reserva')">R</button>
+                            <button class="btn-estado ${eq.estado === 'Seguridad' ? 'seguridad' : ''}" 
+                                     onclick="cambiarEstadoLocal('${eq.id}', 'Seguridad')">S</button>
                         </div>
                     </div>`;
             });
@@ -88,27 +126,38 @@
     function cambiarEstadoLocal(id, nuevoEstado) {
         window.cambiosPendientes = window.cambiosPendientes || {};
         window.cambiosPendientes[id] = nuevoEstado;
-        renderizar(); // Al llamar a renderizar, se recalculan los contadores
+        renderizar(); // Recalcular dinámicamente el resumen
     }
 
     async function sincronizarConHoja() {
         const btn = document.getElementById('btn-sync');
         const IDs = Object.keys(window.cambiosPendientes || {});
-        if (IDs.length === 0) return alert("Nada que sincronizar");
         
-        btn.innerText = "Sincronizando...";
-        btn.style.backgroundColor = "#6b7280";
+        if (IDs.length === 0) return alert("No hay cambios pendientes para sincronizar.");
         
-        for (let id of IDs) {
-            await fetch(URL_MESA_PUENTE + `?id=${id}&estado=${window.cambiosPendientes[id]}`, { method: 'POST', mode: 'no-cors' });
+        btn.innerText = "⏳ Sincronizando...";
+        btn.classList.add('syncing');
+        
+        try {
+            for (let id of IDs) {
+                // Usamos fetch con mode: 'no-cors' para evitar errores CORS en POST a Apps Script
+                await fetch(URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(window.cambiosPendientes[id])}`, { 
+                    method: 'POST', 
+                    mode: 'no-cors' 
+                });
+            }
+            window.cambiosPendientes = {}; // Limpiar cola
+        } catch (error) {
+            console.error('Error sincronizando:', error);
+            alert('Hubo un error al sincronizar algunos cambios.');
+        } finally {
+            btn.innerText = "💾 Sincronizar Cambios";
+            btn.classList.remove('syncing');
+            cargarDatos(); // Recargar datos frescos del servidor
         }
-        
-        window.cambiosPendientes = {};
-        btn.innerText = "💾 Sincronizar Cambios";
-        btn.style.backgroundColor = "#2563eb";
-        cargarDatos();
     }
 
+    // Iniciar carga de datos al cargar la página
     cargarDatos();
 </script>
 </body>
