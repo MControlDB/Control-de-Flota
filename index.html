@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Flota Remoto</title>
     <style>
         body { font-family: sans-serif; background: #f1f5f9; padding: 10px; }
@@ -10,21 +9,24 @@
         .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; }
         .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f8f8f8; }
         .btn-estado { padding: 5px 10px; margin-left: 2px; border: 1px solid #ccc; cursor: pointer; }
-        /* Colores de estado */
-        .activo { background-color: #22c55e; color: white; }        /* Verde */
-.inactivo { background-color: #ef4444; color: white; }      /* Rojo */
-.reserva { background-color: #eab308; color: white; }      /* Amarillo */
-.seguridad { background-color: #3b82f6; color: white; }    /* Azul */
-.btn-estado { border: 1px solid #ccc; cursor: pointer; padding: 5px 8px; border-radius: 4px; }
+        .activo { background-color: #22c55e !important; color: white; }
+        .inactivo { background-color: #ef4444 !important; color: white; }
+        .reserva { background-color: #eab308 !important; color: white; }
+        .seguridad { background-color: #3b82f6 !important; color: white; }
     </style>
 </head>
 <body>
     <h1>Control de Flota Remoto</h1>
-    <div id="resumen-container"></div>
+    
+    <button onclick="sincronizarConHoja()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
+        🔄 Sincronizar Cambios con Hoja
+    </button>
+
     <main id="pizarra-contenidos">Cargando...</main>
 
     <script>
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
+        window.cambiosPendientes = {};
 
         function cargarDatos() {
             const script = document.createElement('script');
@@ -33,43 +35,55 @@
         }
 
         function renderizar(equipos) {
-    const contenedor = document.getElementById('pizarra-contenidos');
-    contenedor.innerHTML = "";
-    
-    const agrupado = equipos.reduce((acc, eq) => {
-        (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
-        return acc;
-    }, {});
+            const contenedor = document.getElementById('pizarra-contenidos');
+            contenedor.innerHTML = "";
+            const agrupado = equipos.reduce((acc, eq) => {
+                (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
+                return acc;
+            }, {});
 
-    for (const [nombre, lista] of Object.entries(agrupado)) {
-        let html = `<section class="categoria-section"><div class="categoria-title">${nombre.toUpperCase()}</div>`;
-        lista.forEach(eq => {
-            // Asignamos la clase según el estado
-            const cls = eq.estado.toLowerCase(); // 'activo', 'inactivo', 'reserva', 'seguridad'
+            for (const [nombre, lista] of Object.entries(agrupado)) {
+                let html = `<section class="categoria-section"><div class="categoria-title">${nombre.toUpperCase()}</div>`;
+                lista.forEach(eq => {
+                    html += `
+                        <div class="tarjeta-equipo" data-id="${eq.id}">
+                            <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
+                            <div class="botones-container">
+                                <button class="btn-estado ${eq.estado === 'Activo' ? 'activo' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Activo', this)">A</button>
+                                <button class="btn-estado ${eq.estado === 'Inactivo' ? 'inactivo' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Inactivo', this)">I</button>
+                                <button class="btn-estado ${eq.estado === 'Reserva' ? 'reserva' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Reserva', this)">R</button>
+                                <button class="btn-estado ${eq.estado === 'Seguridad' ? 'seguridad' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Seguridad', this)">S</button>
+                            </div>
+                        </div>`;
+                });
+                contenedor.innerHTML += html + "</section>";
+            }
+        }
+
+        function cambiarEstadoLocal(id, nuevoEstado, btnElement) {
+            // Guardar en cola
+            window.cambiosPendientes[id] = nuevoEstado;
             
-            html += `
-                <div class="tarjeta-equipo">
-                    <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
-                    <div>
-                        <button class="btn-estado ${eq.estado === 'Activo' ? 'activo' : ''}" onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
-                        <button class="btn-estado ${eq.estado === 'Inactivo' ? 'inactivo' : ''}" onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
-                        <button class="btn-estado ${eq.estado === 'Reserva' ? 'reserva' : ''}" onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
-                        <button class="btn-estado ${eq.estado === 'Seguridad' ? 'seguridad' : ''}" onclick="enviarEstado('${eq.id}', 'Seguridad')">S</button>
-                    </div>
-                </div>`;
-        });
-        contenedor.innerHTML += html + "</section>";
-    }
-}
+            // Cambio visual inmediato
+            const contenedor = btnElement.parentElement;
+            contenedor.querySelectorAll('button').forEach(b => b.style.border = "1px solid #ccc");
+            btnElement.style.border = "3px solid black";
+            alert("Estado " + nuevoEstado + " seleccionado (Pendiente de sincronizar)");
+        }
 
-        function enviarEstado(id, nuevoEstado) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
-            document.body.appendChild(form);
-            form.submit();
-            alert("Actualizando...");
-            setTimeout(cargarDatos, 1500);
+        async function sincronizarConHoja() {
+            const IDs = Object.keys(window.cambiosPendientes);
+            if (IDs.length === 0) { alert("No hay cambios pendientes"); return; }
+            
+            alert("Sincronizando...");
+            for (let id of IDs) {
+                let estado = window.cambiosPendientes[id];
+                // Usamos fetch con modo no-cors para evitar el error de servidor
+                await fetch(URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(estado)}`, { method: 'POST', mode: 'no-cors' });
+            }
+            window.cambiosPendientes = {};
+            alert("Sincronización completa");
+            cargarDatos();
         }
 
         cargarDatos();
