@@ -2,91 +2,108 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Flota Remoto</title>
     <style>
-        body { font-family: sans-serif; background: #f1f5f9; padding: 10px; }
-        .categoria-section { background: white; margin-bottom: 20px; padding: 15px; border-radius: 8px; }
-        .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; }
-        .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f8f8f8; }
-        .btn-estado { padding: 5px 10px; margin-left: 2px; border: 1px solid #ccc; cursor: pointer; }
-        .activo { background-color: #22c55e !important; color: white; }
-        .inactivo { background-color: #ef4444 !important; color: white; }
-        .reserva { background-color: #eab308 !important; color: white; }
-        .seguridad { background-color: #3b82f6 !important; color: white; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 10px; margin: 0; }
+        .dashboard-header { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .resumen-tabla { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .resumen-tabla th, .resumen-tabla td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+        .categoria-section { background: white; margin-bottom: 15px; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
+        .btn-estado { padding: 6px 12px; margin-left: 4px; border: 1px solid #ccc; cursor: pointer; border-radius: 4px; font-weight: bold; background: #fff; }
+        
+        /* Colores de estado activos (cuando se seleccionan) */
+        .activo { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
+        .inactivo { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
+        .reserva { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; }
+        .seguridad { background-color: #3b82f6 !important; color: white !important; border-color: #2563eb !important; }
     </style>
 </head>
 <body>
-    <h1>Control de Flota Remoto</h1>
-    
-    <button onclick="sincronizarConHoja()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
-        🔄 Sincronizar Cambios con Hoja
-    </button>
 
-    <main id="pizarra-contenidos">Cargando...</main>
+<div class="dashboard-header">
+    <h2 style="margin:0">Control de Flota</h2>
+    <button onclick="sincronizarConHoja()" style="width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; margin-top: 10px;">💾 Sincronizar Cambios</button>
+    <div id="resumen-container"></div>
+</div>
 
-    <script>
-        const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
+<main id="pizarra-contenidos"></main>
+
+<script>
+    const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
+    window.datosGlobales = [];
+    window.cambiosPendientes = {};
+
+    function cargarDatos() {
+        const script = document.createElement('script');
+        script.src = URL_MESA_PUENTE + "?callback=procesarDatos";
+        document.body.appendChild(script);
+    }
+
+    function procesarDatos(equipos) {
+        window.datosGlobales = equipos;
+        renderizar();
+    }
+
+    function renderizar() {
+        const contenedor = document.getElementById('pizarra-contenidos');
+        const resumen = document.getElementById('resumen-container');
+        contenedor.innerHTML = "";
+        
+        const grupos = {};
+        window.datosGlobales.forEach(eq => {
+            if (!grupos[eq.grupo]) grupos[eq.grupo] = { lista: [], activos: 0 };
+            grupos[eq.grupo].lista.push(eq);
+            if (eq.estado === 'Activo') grupos[eq.grupo].activos++;
+        });
+
+        // 1. Dibujar Resumen
+        let resumenHTML = `<table class="resumen-tabla"><tr><th>Maquinaria</th><th>Activos</th></tr>`;
+        for (let g in grupos) resumenHTML += `<tr><td>${g}</td><td>${grupos[g].activos}</td></tr>`;
+        resumen.innerHTML = resumenHTML + `</table>`;
+
+        // 2. Dibujar Tarjetas
+        for (const [nombre, datos] of Object.entries(grupos)) {
+            let html = `<h3>${nombre}</h3>`;
+            datos.lista.forEach(eq => {
+                const est = window.cambiosPendientes[eq.id] || eq.estado;
+                html += `
+                    <div class="tarjeta-equipo">
+                        <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
+                        <div>
+                            ${['Activo','Inactivo','Reserva','Seguridad'].map(s => 
+                                `<button class="btn-estado ${est===s ? s.toLowerCase() : ''}" 
+                                         onclick="cambiarEstadoLocal('${eq.id}', '${s}', this)">${s[0]}</button>`
+                            ).join('')}
+                        </div>
+                    </div>`;
+            });
+            contenedor.innerHTML += `<section class="categoria-section">${html}</section>`;
+        }
+    }
+
+    function cambiarEstadoLocal(id, nuevoEstado, btn) {
+        window.cambiosPendientes[id] = nuevoEstado;
+        // Cambio visual limpio
+        btn.parentElement.querySelectorAll('button').forEach(b => b.className = 'btn-estado');
+        btn.className = 'btn-estado ' + nuevoEstado.toLowerCase();
+        // Recalcular resumen sin recargar
+        renderizar();
+    }
+
+    async function sincronizarConHoja() {
+        const IDs = Object.keys(window.cambiosPendientes);
+        if (IDs.length === 0) return alert("Nada que sincronizar");
+        
+        for (let id of IDs) {
+            await fetch(URL_MESA_PUENTE + `?id=${id}&estado=${window.cambiosPendientes[id]}`, { method: 'POST', mode: 'no-cors' });
+        }
         window.cambiosPendientes = {};
-
-        function cargarDatos() {
-            const script = document.createElement('script');
-            script.src = URL_MESA_PUENTE + "?callback=renderizar";
-            document.body.appendChild(script);
-        }
-
-        function renderizar(equipos) {
-            const contenedor = document.getElementById('pizarra-contenidos');
-            contenedor.innerHTML = "";
-            const agrupado = equipos.reduce((acc, eq) => {
-                (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
-                return acc;
-            }, {});
-
-            for (const [nombre, lista] of Object.entries(agrupado)) {
-                let html = `<section class="categoria-section"><div class="categoria-title">${nombre.toUpperCase()}</div>`;
-                lista.forEach(eq => {
-                    html += `
-                        <div class="tarjeta-equipo" data-id="${eq.id}">
-                            <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
-                            <div class="botones-container">
-                                <button class="btn-estado ${eq.estado === 'Activo' ? 'activo' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Activo', this)">A</button>
-                                <button class="btn-estado ${eq.estado === 'Inactivo' ? 'inactivo' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Inactivo', this)">I</button>
-                                <button class="btn-estado ${eq.estado === 'Reserva' ? 'reserva' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Reserva', this)">R</button>
-                                <button class="btn-estado ${eq.estado === 'Seguridad' ? 'seguridad' : ''}" onclick="cambiarEstadoLocal('${eq.id}', 'Seguridad', this)">S</button>
-                            </div>
-                        </div>`;
-                });
-                contenedor.innerHTML += html + "</section>";
-            }
-        }
-
-        function cambiarEstadoLocal(id, nuevoEstado, btnElement) {
-            // Guardar en cola
-            window.cambiosPendientes[id] = nuevoEstado;
-            
-            // Cambio visual inmediato
-            const contenedor = btnElement.parentElement;
-            contenedor.querySelectorAll('button').forEach(b => b.style.border = "1px solid #ccc");
-            btnElement.style.border = "3px solid black";
-            alert("Estado " + nuevoEstado + " seleccionado (Pendiente de sincronizar)");
-        }
-
-        async function sincronizarConHoja() {
-            const IDs = Object.keys(window.cambiosPendientes);
-            if (IDs.length === 0) { alert("No hay cambios pendientes"); return; }
-            
-            alert("Sincronizando...");
-            for (let id of IDs) {
-                let estado = window.cambiosPendientes[id];
-                // Usamos fetch con modo no-cors para evitar el error de servidor
-                await fetch(URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(estado)}`, { method: 'POST', mode: 'no-cors' });
-            }
-            window.cambiosPendientes = {};
-            alert("Sincronización completa");
-            cargarDatos();
-        }
-
         cargarDatos();
-    </script>
+    }
+
+    cargarDatos();
+</script>
 </body>
 </html>
