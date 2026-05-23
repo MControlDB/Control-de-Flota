@@ -2,118 +2,70 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
-    <title>Pizarra Flota Móvil - Sincronizada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizarra de Flota</title>
     <style>
-        :root {
-            --bg-activo: #2ecc71; --bg-inactivo: #e74c3c;
-            --bg-seguridad: #f1c40f; --bg-reserva: #34495e;
-            --primary-color: #0f172a;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; padding: 10px; }
-        header { border-bottom: 2px solid #cbd5e1; margin-bottom: 15px; padding-bottom: 10px; }
-        .header-top { display: flex; justify-content: space-between; align-items: center; }
-        h1 { font-size: 1.2rem; margin: 0; }
-        .btn-accion { width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; background-color: #2563eb; margin-top: 10px; }
-        .btn-accion:disabled { background-color: #94a3b8; }
-        .categoria-section { background: #ffffff; padding: 12px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .categoria-title { font-size: 0.85rem; font-weight: bold; color: #475569; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; margin-bottom: 10px; padding-bottom: 4px; }
-        .grid-equipos { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
-        .tarjeta-equipo { background-color: #f8fafc; border-left: 5px solid #ccc; border-radius: 6px; padding: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; }
-        .tarjeta-equipo[data-estado="Activo"] { border-left-color: var(--bg-activo); }
-        .tarjeta-equipo[data-estado="Inactivo"] { border-left-color: var(--bg-inactivo); }
-        .tarjeta-equipo[data-estado="Seguridad"] { border-left-color: var(--bg-seguridad); }
-        .tarjeta-equipo[data-estado="Reserva"] { border-left-color: var(--bg-reserva); }
-        .equipo-id { font-weight: bold; color: #0f172a; }
-        .equipo-sub { font-size: 0.7rem; color: #64748b; }
-        .selectores-estado { display: flex; gap: 3px; }
-        .btn-estado { width: 24px; height: 24px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; cursor: pointer; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; }
-        .panel-contadores { display: flex; justify-content: space-around; background: #f8fafc; padding: 6px; margin-top: 10px; font-size: 0.75rem; font-weight: bold; }
+        body { font-family: -apple-system, sans-serif; background: #f1f5f9; padding: 10px; }
+        .categoria-section { background: white; margin-bottom: 20px; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; text-transform: uppercase; font-size: 0.9rem; }
+        .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f8f8f8; }
+        .estado-box button { margin-left: 5px; cursor: pointer; padding: 5px 10px; border-radius: 4px; border: 1px solid #cbd5e1; }
+        .estado-box button:active { background: #e2e8f0; }
     </style>
 </head>
 <body>
-
-    <header>
-        <div class="header-top">
-            <h1>Control de Flota Remoto</h1>
-            <div id="total-maquinas">Total: --</div>
-        </div>
-        <button class="btn-accion" id="btn-save" onclick="enviarEstadosALaNube()">💾 Guardar Reporte en Excel</button>
-    </header>
-
-    <main id="pizarra-contenidos"></main>
+    <main id="pizarra-contenidos">Cargando datos...</main>
 
     <script>
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
 
-        const datosFlota = {
-            "EXCAVADORAS": [{ id: "92", modelo: "336", sub: "Ecovial" }, { id: "RT08", modelo: "350", sub: "Ecovial" }, { id: "EX06", modelo: "HX340HD", sub: "Duroblock" }],
-            "VOLQUETES": [{ id: "CV-01", modelo: "SX32556", sub: "Duroblock" }, { id: "CV-02", modelo: "SX32556", sub: "Duroblock" }]
-            // ... agrega aquí el resto de tu lista
-        };
-
-        let estadosActuales = {};
-
-        async function inicializarPizarra() {
-            let estadosRemotos = {};
+        async function cargarDatos() {
             try {
                 const res = await fetch(URL_MESA_PUENTE);
-                estadosRemotos = await res.json();
-            } catch(e) { console.warn("Modo offline"); }
-
-            const contenedor = document.getElementById('pizarra-contenidos');
-            
-            for (const [categoria, equipos] of Object.entries(datosFlota)) {
-                const seccion = document.createElement('section');
-                seccion.className = 'categoria-section';
-                let html = `<div class="categoria-title">${categoria}</div><div class="grid-equipos">`;
+                const equipos = await res.json();
+                const contenedor = document.getElementById('pizarra-contenidos');
                 
-                equipos.forEach(eq => {
-                    const idLimpio = eq.id.toUpperCase().replace(/[\s-]/g, "");
-                    const estado = estadosRemotos[idLimpio] || "Activo";
-                    estadosActuales[eq.id] = { estado: estado };
-                    
-                    html += `
-                        <div class="tarjeta-equipo" id="eq-${eq.id}" data-estado="${estado}">
-                            <div class="info-bloque">
-                                <div class="equipo-id">${eq.id}</div>
-                                <div class="equipo-sub">${eq.modelo}</div>
-                            </div>
-                            <div class="selectores-estado">
-                                <div class="btn-estado" onclick="actualizarVisual('${eq.id}', 'Activo')">A</div>
-                                <div class="btn-estado" onclick="actualizarVisual('${eq.id}', 'Inactivo')">I</div>
-                                <div class="btn-estado" onclick="actualizarVisual('${eq.id}', 'Reserva')">R</div>
-                            </div>
-                        </div>`;
-                });
-                seccion.innerHTML = html + "</div>";
-                contenedor.appendChild(seccion);
+                // Agrupar datos por la columna 'grupo'
+                const agrupado = equipos.reduce((acc, eq) => {
+                    (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
+                    return acc;
+                }, {});
+
+                contenedor.innerHTML = "";
+                for (const [grupo, lista] of Object.entries(agrupado)) {
+                    let html = `<section class="categoria-section"><div class="categoria-title">${grupo}</div>`;
+                    lista.forEach(eq => {
+                        html += `
+                            <div class="tarjeta-equipo">
+                                <span><strong>${eq.id}</strong> - ${eq.modelo} <i>(${eq.estado})</i></span>
+                                <div class="estado-box">
+                                    <button onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
+                                    <button onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
+                                    <button onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
+                                </div>
+                            </div>`;
+                    });
+                    contenedor.innerHTML += html + "</section>";
+                }
+            } catch (e) {
+                document.getElementById('pizarra-contenidos').innerHTML = "Error al cargar datos.";
             }
         }
 
-        function actualizarVisual(id, estado) {
-            document.getElementById(`eq-${id}`).dataset.estado = estado;
-            estadosActuales[id].estado = estado;
+        async function enviarEstado(id, nuevoEstado) {
+            // Usamos la URL con parámetros para evitar problemas de CORS
+            const url = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
+            
+            try {
+                await fetch(url, { method: 'POST', mode: 'no-cors' });
+                alert("✅ " + id + " actualizado a " + nuevoEstado);
+                cargarDatos(); // Recargar la vista
+            } catch (err) {
+                alert("❌ Error: " + err);
+            }
         }
 
-function enviarEstado(id, nuevoEstado) {
-    const btn = document.getElementById('btn-save');
-    btn.innerText = "⏳ Sincronizando...";
-    
-    // Usamos el ID y el Estado directamente como parámetros
-    const url = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
-    
-    fetch(url, { method: 'POST', mode: 'no-cors' })
-    .then(() => {
-        alert("✅ " + id + " actualizado a " + nuevoEstado);
-        btn.innerText = "💾 Guardar Reporte en Excel";
-    })
-    .catch(err => {
-        alert("❌ Error de red: " + err);
-        btn.innerText = "💾 Guardar Reporte en Excel";
-    });
-}
-        inicializarPizarra();
+        cargarDatos();
     </script>
 </body>
 </html>
