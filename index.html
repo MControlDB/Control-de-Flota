@@ -96,24 +96,22 @@
             estadosActuales[id].estado = estado;
         }
 
-       async function enviarEstadosALaNube() {
+     async function enviarEstadosALaNube() {
     const btn = document.getElementById('btn-save');
     btn.innerText = "⏳ Sincronizando...";
     btn.disabled = true;
 
     try {
-        const response = await fetch(URL_MESA_PUENTE, {
+        await fetch(URL_MESA_PUENTE, {
             method: "POST",
-            redirect: "follow", // Sigue la redirección de Google
-            headers: { "Content-Type": "text/plain" }, // A veces ayuda con Google Apps Script
+            mode: "no-cors", 
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(estadosActuales)
         });
         
-        // Google a veces responde con un código que parece error pero es éxito
-        alert("✅ Solicitud enviada. Verifica tu hoja de cálculo.");
+        alert("✅ Datos enviados. Verifica tu hoja de cálculo.");
     } catch(e) { 
-        console.error(e);
-        alert("❌ Error de comunicación. Revisa la consola."); 
+        alert("❌ Error: " + e.message); 
     } finally { 
         btn.innerText = "💾 Guardar Reporte en Excel"; 
         btn.disabled = false; 
