@@ -96,27 +96,22 @@
             estadosActuales[id].estado = estado;
         }
 
-async function enviarEstadosALaNube() {
+function enviarEstado(id, nuevoEstado) {
     const btn = document.getElementById('btn-save');
     btn.innerText = "⏳ Sincronizando...";
-    btn.disabled = true;
-
-    try {
-        // La clave aquí es el mode: 'no-cors' para evitar bloqueos
-        await fetch(URL_MESA_PUENTE, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(estadosActuales)
-        });
-        
-        alert("✅ Datos enviados. Actualiza la página si no ves cambios.");
-    } catch(e) { 
-        alert("❌ Error: " + e.message); 
-    } finally { 
-        btn.innerText = "💾 Guardar Reporte en Excel"; 
-        btn.disabled = false; 
-    }
+    
+    // Usamos el ID y el Estado directamente como parámetros
+    const url = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
+    
+    fetch(url, { method: 'POST', mode: 'no-cors' })
+    .then(() => {
+        alert("✅ " + id + " actualizado a " + nuevoEstado);
+        btn.innerText = "💾 Guardar Reporte en Excel";
+    })
+    .catch(err => {
+        alert("❌ Error de red: " + err);
+        btn.innerText = "💾 Guardar Reporte en Excel";
+    });
 }
         inicializarPizarra();
     </script>
