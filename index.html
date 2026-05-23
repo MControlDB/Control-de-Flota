@@ -52,16 +52,21 @@
             }
         }
 
-        async function enviarEstado(id, nuevoEstado) {
-            const url = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
-            try {
-                await fetch(url, { method: 'POST', mode: 'no-cors' });
-                alert("✅ " + id + " actualizado a " + nuevoEstado);
-                cargarDatos(); // Recargar la vista
-            } catch (err) {
-                alert("❌ Error: " + err);
-            }
-        }
+      async function enviarEstado(id, nuevoEstado) {
+    try {
+        const response = await fetch(URL_MESA_PUENTE, {
+            method: 'POST',
+            // Usamos 'no-cors' para las actualizaciones, 
+            // aunque requiere que el servidor no necesite leer el cuerpo como JSON complejo
+            mode: 'no-cors',
+            body: JSON.stringify({id: id, estado: nuevoEstado})
+        });
+        alert("✅ " + id + " actualizado.");
+        cargarDatos(); 
+    } catch (err) {
+        alert("❌ Error: " + err);
+    }
+}
 
         cargarDatos();
     </script>
