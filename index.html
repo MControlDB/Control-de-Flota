@@ -18,54 +18,30 @@
     <script>
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
 
-        async function cargarDatos() {
-            const contenedor = document.getElementById('pizarra-contenidos');
-            try {
-                const res = await fetch(URL_MESA_PUENTE);
-                const equipos = await res.json();
-                
-                // Agrupar datos por la columna 'grupo'
-                const agrupado = equipos.reduce((acc, eq) => {
-                    (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
-                    return acc;
-                }, {});
+// Reemplaza tu función cargarDatos por esto:
+function cargarDatos() {
+    const script = document.createElement('script');
+    // El parámetro ?callback=renderizar hace que Google llame a tu función
+    script.src = URL_MESA_PUENTE + "?callback=renderizar";
+    document.body.appendChild(script);
+}
 
-                contenedor.innerHTML = "";
-                for (const [grupo, lista] of Object.entries(agrupado)) {
-                    let html = `<section class="categoria-section"><div class="categoria-title">${grupo}</div>`;
-                    lista.forEach(eq => {
-                        html += `
-                            <div class="tarjeta-equipo">
-                                <span><strong>${eq.id}</strong> - ${eq.modelo} <i>(${eq.estado})</i></span>
-                                <div class="estado-box">
-                                    <button onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
-                                    <button onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
-                                    <button onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
-                                </div>
-                            </div>`;
-                    });
-                    contenedor.innerHTML += html + "</section>";
-                }
-            } catch (e) {
-                console.error("Error al cargar:", e);
-                contenedor.innerHTML = "Error al cargar datos.";
-            }
-        }
+function renderizar(equipos) {
+    // ... aquí pones toda tu lógica actual de agrupación y pintado ...
+}
 
-      async function enviarEstado(id, nuevoEstado) {
-    try {
-        const response = await fetch(URL_MESA_PUENTE, {
-            method: 'POST',
-            // Usamos 'no-cors' para las actualizaciones, 
-            // aunque requiere que el servidor no necesite leer el cuerpo como JSON complejo
-            mode: 'no-cors',
-            body: JSON.stringify({id: id, estado: nuevoEstado})
-        });
-        alert("✅ " + id + " actualizado.");
-        cargarDatos(); 
-    } catch (err) {
-        alert("❌ Error: " + err);
-    }
+function enviarEstado(id, nuevoEstado) {
+    // Creamos un formulario invisible
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
+    form.target = '_blank'; // Se abre en background
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+    
+    alert("✅ Enviando actualización...");
+    setTimeout(cargarDatos, 2000); // Recarga tras 2 segundos
 }
 
         cargarDatos();
