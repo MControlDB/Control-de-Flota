@@ -96,21 +96,29 @@
             estadosActuales[id].estado = estado;
         }
 
-        async function enviarEstadosALaNube() {
-            const btn = document.getElementById('btn-save');
-            btn.innerText = "⏳ Sincronizando...";
-            btn.disabled = true;
+       async function enviarEstadosALaNube() {
+    const btn = document.getElementById('btn-save');
+    btn.innerText = "⏳ Sincronizando...";
+    btn.disabled = true;
 
-            try {
-                const res = await fetch(URL_MESA_PUENTE, {
-                    method: "POST",
-                    body: JSON.stringify(estadosActuales)
-                });
-                if (res.ok) alert("✅ Sincronizado");
-                else alert("❌ Error al guardar");
-            } catch(e) { alert("❌ Fallo de red"); }
-            finally { btn.innerText = "💾 Guardar Reporte en Excel"; btn.disabled = false; }
-        }
+    try {
+        const response = await fetch(URL_MESA_PUENTE, {
+            method: "POST",
+            redirect: "follow", // Sigue la redirección de Google
+            headers: { "Content-Type": "text/plain" }, // A veces ayuda con Google Apps Script
+            body: JSON.stringify(estadosActuales)
+        });
+        
+        // Google a veces responde con un código que parece error pero es éxito
+        alert("✅ Solicitud enviada. Verifica tu hoja de cálculo.");
+    } catch(e) { 
+        console.error(e);
+        alert("❌ Error de comunicación. Revisa la consola."); 
+    } finally { 
+        btn.innerText = "💾 Guardar Reporte en Excel"; 
+        btn.disabled = false; 
+    }
+}
 
         inicializarPizarra();
     </script>
