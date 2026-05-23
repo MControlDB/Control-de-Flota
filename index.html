@@ -18,16 +18,42 @@
     <script>
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
 
-// Reemplaza tu función cargarDatos por esto:
 function cargarDatos() {
+    // Eliminamos el script anterior si existe para evitar duplicados
+    const oldScript = document.getElementById('jsonp-script');
+    if (oldScript) oldScript.remove();
+
     const script = document.createElement('script');
-    // El parámetro ?callback=renderizar hace que Google llame a tu función
-    script.src = URL_MESA_PUENTE + "?callback=renderizar";
+    script.id = 'jsonp-script';
+    // La URL debe apuntar a tu despliegue (asegúrate de incluir /exec al final)
+    script.src = "TU_URL_AQUI/exec?callback=renderizar";
     document.body.appendChild(script);
 }
 
+// Esta función es llamada automáticamente por Google Apps Script
 function renderizar(equipos) {
-    // ... aquí pones toda tu lógica actual de agrupación y pintado ...
+    const contenedor = document.getElementById('pizarra-contenidos');
+    const agrupado = equipos.reduce((acc, eq) => {
+        (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
+        return acc;
+    }, {});
+
+    contenedor.innerHTML = "";
+    for (const [grupo, lista] of Object.entries(agrupado)) {
+        let html = `<section class="categoria-section"><div class="categoria-title">${grupo}</div>`;
+        lista.forEach(eq => {
+            html += `
+                <div class="tarjeta-equipo">
+                    <span><strong>${eq.id}</strong> - ${eq.modelo} <i>(${eq.estado})</i></span>
+                    <div class="estado-box">
+                        <button onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
+                        <button onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
+                        <button onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
+                    </div>
+                </div>`;
+        });
+        contenedor.innerHTML += html + "</section>";
+    }
 }
 
 function enviarEstado(id, nuevoEstado) {
