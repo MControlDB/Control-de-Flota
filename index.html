@@ -2,18 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control de Flota Remoto</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 10px; margin: 0; }
-        .dashboard-header { background: #fff; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; background: #f1f5f9; padding: 10px; }
+        .dashboard-header { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .resumen-tabla { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .resumen-tabla th, .resumen-tabla td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-        .categoria-section { background: white; margin-bottom: 15px; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .categoria-section { background: white; margin-bottom: 15px; padding: 10px; border-radius: 8px; }
         .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
         .btn-estado { padding: 6px 12px; margin-left: 4px; border: 1px solid #ccc; cursor: pointer; border-radius: 4px; font-weight: bold; background: #fff; }
         
-        /* Colores de estado activos (cuando se seleccionan) */
+        /* Colores de estado */
         .activo { background-color: #22c55e !important; color: white !important; border-color: #16a34a !important; }
         .inactivo { background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important; }
         .reserva { background-color: #eab308 !important; color: white !important; border-color: #ca8a04 !important; }
@@ -24,7 +23,9 @@
 
 <div class="dashboard-header">
     <h2 style="margin:0">Control de Flota</h2>
-    <button onclick="sincronizarConHoja()" style="width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; margin-top: 10px;">💾 Sincronizar Cambios</button>
+    <button id="btn-sync" onclick="sincronizarConHoja()" style="width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; margin-top: 10px;">
+        💾 Sincronizar Cambios
+    </button>
     <div id="resumen-container"></div>
 </div>
 
@@ -32,8 +33,7 @@
 
 <script>
     const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
-    window.datosGlobales = [];
-    window.cambiosPendientes = {};
+    window.datosGlobales = []; // Array original
 
     function cargarDatos() {
         const script = document.createElement('script');
@@ -53,28 +53,30 @@
         
         const grupos = {};
         window.datosGlobales.forEach(eq => {
+            // Si hay un cambio pendiente local, lo usamos para el cálculo
+            const estadoActual = window.cambiosPendientes ? (window.cambiosPendientes[eq.id] || eq.estado) : eq.estado;
+            
             if (!grupos[eq.grupo]) grupos[eq.grupo] = { lista: [], activos: 0 };
-            grupos[eq.grupo].lista.push(eq);
-            if (eq.estado === 'Activo') grupos[eq.grupo].activos++;
+            grupos[eq.grupo].lista.push({ ...eq, estado: estadoActual });
+            if (estadoActual === 'Activo') grupos[eq.grupo].activos++;
         });
 
-        // 1. Dibujar Resumen
-        let resumenHTML = `<table class="resumen-tabla"><tr><th>Maquinaria</th><th>Activos</th></tr>`;
+        // Dibujar Resumen
+        let resumenHTML = `<table class="resumen-tabla"><tr><th>Grupo</th><th>Activos</th></tr>`;
         for (let g in grupos) resumenHTML += `<tr><td>${g}</td><td>${grupos[g].activos}</td></tr>`;
         resumen.innerHTML = resumenHTML + `</table>`;
 
-        // 2. Dibujar Tarjetas
+        // Dibujar Tarjetas
         for (const [nombre, datos] of Object.entries(grupos)) {
             let html = `<h3>${nombre}</h3>`;
             datos.lista.forEach(eq => {
-                const est = window.cambiosPendientes[eq.id] || eq.estado;
                 html += `
                     <div class="tarjeta-equipo">
                         <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
                         <div>
                             ${['Activo','Inactivo','Reserva','Seguridad'].map(s => 
-                                `<button class="btn-estado ${est===s ? s.toLowerCase() : ''}" 
-                                         onclick="cambiarEstadoLocal('${eq.id}', '${s}', this)">${s[0]}</button>`
+                                `<button class="btn-estado ${eq.estado === s ? s.toLowerCase() : ''}" 
+                                         onclick="cambiarEstadoLocal('${eq.id}', '${s}')">${s[0]}</button>`
                             ).join('')}
                         </div>
                     </div>`;
@@ -83,23 +85,27 @@
         }
     }
 
-    function cambiarEstadoLocal(id, nuevoEstado, btn) {
+    function cambiarEstadoLocal(id, nuevoEstado) {
+        window.cambiosPendientes = window.cambiosPendientes || {};
         window.cambiosPendientes[id] = nuevoEstado;
-        // Cambio visual limpio
-        btn.parentElement.querySelectorAll('button').forEach(b => b.className = 'btn-estado');
-        btn.className = 'btn-estado ' + nuevoEstado.toLowerCase();
-        // Recalcular resumen sin recargar
-        renderizar();
+        renderizar(); // Al llamar a renderizar, se recalculan los contadores
     }
 
     async function sincronizarConHoja() {
-        const IDs = Object.keys(window.cambiosPendientes);
+        const btn = document.getElementById('btn-sync');
+        const IDs = Object.keys(window.cambiosPendientes || {});
         if (IDs.length === 0) return alert("Nada que sincronizar");
+        
+        btn.innerText = "Sincronizando...";
+        btn.style.backgroundColor = "#6b7280";
         
         for (let id of IDs) {
             await fetch(URL_MESA_PUENTE + `?id=${id}&estado=${window.cambiosPendientes[id]}`, { method: 'POST', mode: 'no-cors' });
         }
+        
         window.cambiosPendientes = {};
+        btn.innerText = "💾 Sincronizar Cambios";
+        btn.style.backgroundColor = "#2563eb";
         cargarDatos();
     }
 
