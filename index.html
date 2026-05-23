@@ -10,20 +10,19 @@
         .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; text-transform: uppercase; font-size: 0.9rem; }
         .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f8f8f8; }
         .estado-box button { margin-left: 5px; cursor: pointer; padding: 5px 10px; border-radius: 4px; border: 1px solid #cbd5e1; }
-        .estado-box button:active { background: #e2e8f0; }
     </style>
 </head>
 <body>
     <main id="pizarra-contenidos">Cargando datos...</main>
 
     <script>
-        const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
+        const URL_MESA_PUENTE = "TU_NUEVA_URL_AQUI_CON_EXEC";
 
         async function cargarDatos() {
+            const contenedor = document.getElementById('pizarra-contenidos');
             try {
                 const res = await fetch(URL_MESA_PUENTE);
                 const equipos = await res.json();
-                const contenedor = document.getElementById('pizarra-contenidos');
                 
                 // Agrupar datos por la columna 'grupo'
                 const agrupado = equipos.reduce((acc, eq) => {
@@ -48,14 +47,13 @@
                     contenedor.innerHTML += html + "</section>";
                 }
             } catch (e) {
-                document.getElementById('pizarra-contenidos').innerHTML = "Error al cargar datos.";
+                console.error("Error al cargar:", e);
+                contenedor.innerHTML = "Error al cargar datos.";
             }
         }
 
         async function enviarEstado(id, nuevoEstado) {
-            // Usamos la URL con parámetros para evitar problemas de CORS
             const url = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
-            
             try {
                 await fetch(url, { method: 'POST', mode: 'no-cors' });
                 alert("✅ " + id + " actualizado a " + nuevoEstado);
