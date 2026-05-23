@@ -102,27 +102,22 @@ async function enviarEstadosALaNube() {
     btn.disabled = true;
 
     try {
-        // Enviar como texto plano evita el bloqueo de CORS preflight
+        // La clave aquí es el mode: 'no-cors' para evitar bloqueos
         await fetch(URL_MESA_PUENTE, {
             method: "POST",
             mode: "no-cors",
-            headers: {
-                "Content-Type": "text/plain"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(estadosActuales)
         });
         
-        // Dado que usamos no-cors, no podemos leer la respuesta, 
-        // pero la petición sí llegará al servidor de Google.
-        alert("✅ Datos enviados. Verifica la hoja en unos segundos.");
-    } catch(e) {
-        alert("❌ Error: " + e.message);
-    } finally {
-        btn.innerText = "💾 Guardar Reporte en Excel";
-        btn.disabled = false;
+        alert("✅ Datos enviados. Actualiza la página si no ves cambios.");
+    } catch(e) { 
+        alert("❌ Error: " + e.message); 
+    } finally { 
+        btn.innerText = "💾 Guardar Reporte en Excel"; 
+        btn.disabled = false; 
     }
 }
-
         inicializarPizarra();
     </script>
 </body>
