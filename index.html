@@ -3,52 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pizarra de Flota</title>
+    <title>Control de Flota Remoto</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f1f5f9; padding: 10px; }
-        .categoria-section { background: white; margin-bottom: 20px; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; text-transform: uppercase; font-size: 0.9rem; }
+        body { font-family: sans-serif; background: #f1f5f9; padding: 10px; }
+        .categoria-section { background: white; margin-bottom: 20px; padding: 15px; border-radius: 8px; }
+        .categoria-title { font-weight: bold; color: #334; border-bottom: 2px solid #eee; margin-bottom: 10px; }
         .tarjeta-equipo { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f8f8f8; }
-        .estado-box button { margin-left: 5px; cursor: pointer; padding: 5px 10px; border-radius: 4px; border: 1px solid #cbd5e1; }
+        .btn-estado { padding: 5px 10px; margin-left: 2px; border: 1px solid #ccc; cursor: pointer; }
+        /* Colores de estado */
+        .activo { background-color: #22c55e; color: white; }        /* Verde */
+.inactivo { background-color: #ef4444; color: white; }      /* Rojo */
+.reserva { background-color: #eab308; color: white; }      /* Amarillo */
+.seguridad { background-color: #3b82f6; color: white; }    /* Azul */
+.btn-estado { border: 1px solid #ccc; cursor: pointer; padding: 5px 8px; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <main id="pizarra-contenidos">Cargando datos...</main>
+    <h1>Control de Flota Remoto</h1>
+    <div id="resumen-container"></div>
+    <main id="pizarra-contenidos">Cargando...</main>
 
     <script>
         const URL_MESA_PUENTE = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec";
 
-function cargarDatos() {
-    // Eliminamos el script anterior si existe para evitar duplicados
-    const oldScript = document.getElementById('jsonp-script');
-    if (oldScript) oldScript.remove();
+        function cargarDatos() {
+            const script = document.createElement('script');
+            script.src = URL_MESA_PUENTE + "?callback=renderizar";
+            document.body.appendChild(script);
+        }
 
-    const script = document.createElement('script');
-    script.id = 'jsonp-script';
-    // La URL debe apuntar a tu despliegue (asegúrate de incluir /exec al final)
-    script.src = "https://script.google.com/macros/s/AKfycbybtkp6QDuSD8OfvR7y08bEW8jq22BxAD2tKAnzaTKCOeU9yT9GWABGzuSvUVmLHWji0g/exec?callback=renderizar";
-    document.body.appendChild(script);
-}
-
-// Esta función es llamada automáticamente por Google Apps Script
-function renderizar(equipos) {
+        function renderizar(equipos) {
     const contenedor = document.getElementById('pizarra-contenidos');
+    contenedor.innerHTML = "";
+    
     const agrupado = equipos.reduce((acc, eq) => {
         (acc[eq.grupo] = acc[eq.grupo] || []).push(eq);
         return acc;
     }, {});
 
-    contenedor.innerHTML = "";
-    for (const [grupo, lista] of Object.entries(agrupado)) {
-        let html = `<section class="categoria-section"><div class="categoria-title">${grupo}</div>`;
+    for (const [nombre, lista] of Object.entries(agrupado)) {
+        let html = `<section class="categoria-section"><div class="categoria-title">${nombre.toUpperCase()}</div>`;
         lista.forEach(eq => {
+            // Asignamos la clase según el estado
+            const cls = eq.estado.toLowerCase(); // 'activo', 'inactivo', 'reserva', 'seguridad'
+            
             html += `
                 <div class="tarjeta-equipo">
-                    <span><strong>${eq.id}</strong> - ${eq.modelo} <i>(${eq.estado})</i></span>
-                    <div class="estado-box">
-                        <button onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
-                        <button onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
-                        <button onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
+                    <div><strong>${eq.id}</strong><br><small>${eq.modelo}</small></div>
+                    <div>
+                        <button class="btn-estado ${eq.estado === 'Activo' ? 'activo' : ''}" onclick="enviarEstado('${eq.id}', 'Activo')">A</button>
+                        <button class="btn-estado ${eq.estado === 'Inactivo' ? 'inactivo' : ''}" onclick="enviarEstado('${eq.id}', 'Inactivo')">I</button>
+                        <button class="btn-estado ${eq.estado === 'Reserva' ? 'reserva' : ''}" onclick="enviarEstado('${eq.id}', 'Reserva')">R</button>
+                        <button class="btn-estado ${eq.estado === 'Seguridad' ? 'seguridad' : ''}" onclick="enviarEstado('${eq.id}', 'Seguridad')">S</button>
                     </div>
                 </div>`;
         });
@@ -56,19 +62,15 @@ function renderizar(equipos) {
     }
 }
 
-function enviarEstado(id, nuevoEstado) {
-    // Creamos un formulario invisible
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
-    form.target = '_blank'; // Se abre en background
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    
-    alert("✅ Enviando actualización...");
-    setTimeout(cargarDatos, 2000); // Recarga tras 2 segundos
-}
+        function enviarEstado(id, nuevoEstado) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = URL_MESA_PUENTE + `?id=${encodeURIComponent(id)}&estado=${encodeURIComponent(nuevoEstado)}`;
+            document.body.appendChild(form);
+            form.submit();
+            alert("Actualizando...");
+            setTimeout(cargarDatos, 1500);
+        }
 
         cargarDatos();
     </script>
